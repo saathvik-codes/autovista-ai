@@ -1,0 +1,132 @@
+{
+  "theme_and_archetype": {
+    "domain": "Automotive & Car Discovery",
+    "theme": "Hybrid (Dark Mode for Landing/Main, Light Mode for Dashboard)",
+    "archetype": "Archetype 5 (Jewel & Luxury) mixed with Neon High-Contrast Tech",
+    "vibe": "Cinematic, High-End, Expensive, Futuristic"
+  },
+  "design_philosophy": {
+    "principles": [
+      "Fusion over Imitation: Combine high-end automotive brochure aesthetics with modern SaaS precision.",
+      "Emotion First: The landing page must feel cinematic and fast; the dashboard must feel clear, analytical, and reliable.",
+      "Negative Space: Use massive padding (p-12, p-24) on the landing page to let the cars breathe.",
+      "Contrast: Deep space-blue backgrounds against bright neon cyan/orange accents for striking visual tension."
+    ]
+  },
+  "colors": {
+    "dark_mode_landing": {
+      "background": "#05070D",
+      "surface": "rgba(255, 255, 255, 0.02)",
+      "surface_border": "rgba(255, 255, 255, 0.08)",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#9CA3AF",
+      "brand_gradient": "linear-gradient(to right, #06b6d4, #3b82f6)",
+      "accent_cyan": "#06b6d4",
+      "accent_orange": "#FF5E00",
+      "glassmorphism_bg": "rgba(10, 15, 30, 0.6)"
+    },
+    "light_mode_dashboard": {
+      "background": "#F4F5F7",
+      "surface": "#FFFFFF",
+      "surface_border": "#E5E7EB",
+      "text_primary": "#111827",
+      "text_secondary": "#6B7280",
+      "brand_gradient": "linear-gradient(to right, #06b6d4, #3b82f6)",
+      "accent_cyan": "#06b6d4",
+      "accent_orange": "#FF5E00"
+    }
+  },
+  "typography": {
+    "font_families": {
+      "heading": "'GT Walsheim', 'Outfit', 'Clash Display', sans-serif",
+      "body": "'Framer Medium', 'DM Sans', 'Inter', sans-serif",
+      "mono": "'JetBrains Mono', monospace"
+    },
+    "scales": {
+      "h1": "text-5xl sm:text-6xl tracking-tighter leading-none font-bold",
+      "h2": "text-3xl sm:text-4xl tracking-tight leading-tight font-bold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-semibold",
+      "body": "text-base leading-relaxed",
+      "small_label": "text-xs uppercase tracking-[0.2em] font-medium"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous Spacing Philosophy with Bento Grids",
+    "grids": {
+      "landing_page": "Tetris Grid: grid-cols-1 md:grid-cols-12 gap-8 to gap-12. Asymmetrical spans (e.g., col-span-8, col-span-4).",
+      "dashboard": "Control Room Grid: grid-cols-1 md:grid-cols-4 gap-6. Dense, structured, strict alignment."
+    },
+    "containers": "Use rounded-2xl or rounded-3xl for major sections, rounded-xl for standard cards. Always add internal padding (p-6 to p-8) if a container has a border."
+  },
+  "surface_strategies": {
+    "landing_nav": "Crystal Glass: backdrop-blur-xl bg-black/40 border-b border-white/10. Sticky top.",
+    "landing_cards": "Glassmorphism: backdrop-blur-lg bg-white/5 border border-white/10 hover:border-cyan-500/50 transition-colors shadow-2xl.",
+    "dashboard_cards": "Neumorphism / Clean Flat: bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-xl.",
+    "search_bar_floating": "Highly blurred glass container (backdrop-blur-2xl bg-black/50 border border-white/20) floating over the hero section."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Buttons and cards should lift slightly (-translate-y-1). Dark cards border shifts to cyan. Dashboard cards gain stronger drop shadow.",
+    "button_primary": "Gradient background (Cyan to Blue), text-white, on hover increase brightness and add cyan drop-shadow (drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]).",
+    "voice_search_btn": "Electric Orange circular button with continuous pulsing ring animation (ping).",
+    "page_transitions": "Fade and slight slide-up on enter."
+  },
+  "media_urls": {
+    "hero_car_dark": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/1d9f6af135f5415eae93db33eb7dbcf53f9b79e3e4918ea588ea4b57b495db64.png",
+      "description": "Futuristic electric SUV, dark cinematic lighting, neon edge highlights. Use for the main Landing Page Hero overlay."
+    },
+    "abstract_glass_bg": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/1e86ca222d893c57534c15c2e03ffdcabb19f382f95705f83a3ff28b207d5ac6.png",
+      "description": "Abstract dark background with cyan/orange leaks. Use as the absolute background layer for the dark landing page to create depth."
+    },
+    "car_light_studio": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/d8bb26991ef969148977f2bc83b193e8acd0a68a5cd66ae058da6f8d30eed8de.png",
+      "description": "Minimalist electric sports car in bright white studio. Use for the Light Theme Dashboard, or the Light Theme Car Detail page."
+    },
+    "detail_wheel_accent": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/40b1803120be243cc74b835593c43030ac8db275e5066f2363bee4fb95404d68.png",
+      "description": "Close up of modern wheel with neon orange brakes. Great for the 'Specs' or 'Features' section."
+    },
+    "red_sports_car_front": {
+      "url": "https://images.unsplash.com/photo-1669606072600-1a62d7f24873?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBzcG9ydHMlMjBjYXIlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzY0MzM1NDN8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Aggressive red sports car front in the dark. Perfect for car listing grids as a thumbnail."
+    }
+  },
+  "pages": {
+    "landing_page": {
+      "theme": "dark",
+      "structure": "Hero section with 'abstract_glass_bg' and 'hero_car_dark' overlapping. Floating search bar with budget slider, fuel select, and glowing voice mic. Following sections use Tetris Grid for featured models."
+    },
+    "car_listing": {
+      "theme": "dark",
+      "structure": "Sidebar on the left for filters (budget, brand, fuel). Right side is a dense, highly visual grid of cars using glassmorphism cards."
+    },
+    "car_detail": {
+      "theme": "light",
+      "structure": "Transition to Light theme. Immersive image gallery on top. Tabs for Specifications, EMI Calculator (custom highly styled widget), and Price Prediction Graph (Recharts). Include a 3D-like viewer section if possible (or high-res 'car_light_studio' image with dimension overlays)."
+    },
+    "compare_page": {
+      "theme": "light",
+      "structure": "Clean, analytical side-by-side table. Use Recharts Radar Chart at the top to visually compare performance, comfort, efficiency, etc."
+    },
+    "dashboard": {
+      "theme": "light",
+      "structure": "Sidebar (open/close) on left. White background, gray borders. Minimalist. Display saved cars as clean cards, recommendation history in a dense table, and user analytics with Recharts."
+    }
+  },
+  "components": {
+    "charts": "Use Recharts. For the dark theme, axis strokes should be #4B5563, and lines/bars should use #06b6d4 and #3b82f6. For the light theme, use #9CA3AF for axis.",
+    "icons": "Use lucide-react. Stroke-width 1.5 for elegance.",
+    "shadcn": "For Dashboard: Heavily rely on Shadcn UI (Tables, Select, Tabs, Dialogs, Cards). Override border-radius to match brand (rounded-xl).",
+    "forms": "Inputs should have focus states: focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500. On dark mode, bg-white/5 border-white/10."
+  },
+  "instructions_to_main_agent": [
+    "You are building a Hybrid App. Create a mechanism (like a layout wrapper) that forces `dark` class on the Landing Page and Car Listings, and removes it for the Dashboard and Car Details.",
+    "Ensure all `.js` or `.jsx` files are used. DO NOT USE `.tsx` or TypeScript.",
+    "Always use the provided exact media URLs. DO NOT USE placeholder images like via.placeholder.com.",
+    "Add `data-testid` to all interactive elements, buttons, inputs, tabs, and form submissions.",
+    "Implement Recharts for the EMI graph, Price Prediction Graph, and Compare Radar Chart.",
+    "For the Landing page floating search, make the Voice Search button visually pop with an orange ring to invite interaction.",
+    "The Hero Image must not have a flat black overlay; use a gradient overlay (bg-gradient-to-t from-black via-black/40 to-transparent) so the car and abstract background are fully visible."
+  ]
+}
