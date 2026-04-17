@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
-const LOGO_URL = "https://customer-assets.emergentagent.com/job_autovista-search/artifacts/9soiiv3t_ChatGPT%20Image%20Apr%2017%2C%202026%2C%2007_36_31%20PM.png";
+import AutoVistaLogo from '@/components/AutoVistaLogo';
+
 const BG_URL = "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/1e86ca222d893c57534c15c2e03ffdcabb19f382f95705f83a3ff28b207d5ac6.png";
 
 export default function LoginPage() {
@@ -44,8 +45,9 @@ export default function LoginPage() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
 
-        <motion.img src={LOGO_URL} alt="AutoVista" className="h-10 mb-6 object-contain"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} />
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+          <AutoVistaLogo className="h-10 mb-6" dark={true} />
+        </motion.div>
 
         <h1 className="text-3xl sm:text-4xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>Welcome Back</h1>
         <p className="text-gray-400 mb-8 text-sm">Login to continue your car discovery journey</p>

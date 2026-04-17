@@ -354,6 +354,189 @@ async def get_analytics(user: dict = Depends(get_current_user)):
         "recent_activity": []
     }
 
+# ===================== PASSWORD RESET =====================
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    email = req.email.lower()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        return {"message": "If an account exists, a reset link has been sent."}
+    
+    reset_token = secrets.token_urlsafe(32)
+    await db.password_reset_tokens.insert_one({
+        "token": reset_token,
+        "user_id": str(user["_id"]),
+        "email": email,
+        "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+        "used": False,
+        "created_at": datetime.now(timezone.utc)
+    })
+    
+    reset_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={reset_token}"
+    logger.info(f"Password reset link for {email}: {reset_link}")
+    
+    return {"message": "If an account exists, a reset link has been sent.", "reset_link": reset_link}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    token_doc = await db.password_reset_tokens.find_one({"token": req.token, "used": False})
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    if token_doc["expires_at"].replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    new_hash = hash_password(req.new_password)
+    await db.users.update_one(
+        {"_id": ObjectId(token_doc["user_id"])},
+        {"$set": {"password_hash": new_hash}}
+    )
+    await db.password_reset_tokens.update_one(
+        {"token": req.token},
+        {"$set": {"used": True}}
+    )
+    
+    return {"message": "Password reset successfully"}
+
+# ===================== USER PROFILE =====================
+
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@api_router.put("/auth/profile")
+async def update_profile(req: UpdateProfileRequest, user: dict = Depends(get_current_user)):
+    updates = {}
+    if req.name:
+        updates["name"] = req.name
+    if req.email:
+        email = req.email.lower()
+        existing = await db.users.find_one({"email": email, "_id": {"$ne": ObjectId(user["id"])}})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        updates["email"] = email
+    
+    if updates:
+        await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": updates})
+    
+    updated = await db.users.find_one({"_id": ObjectId(user["id"])}, {"_id": 0, "password_hash": 0})
+    updated["id"] = user["id"]
+    return updated
+
+@api_router.post("/auth/change-password")
+async def change_password(req: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"_id": ObjectId(user["id"])})
+    if not verify_password(req.current_password, user_doc["password_hash"]):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    new_hash = hash_password(req.new_password)
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": {"password_hash": new_hash}})
+    return {"message": "Password changed successfully"}
+
+# ===================== ADMIN ENDPOINTS =====================
+
+async def require_admin(request: Request) -> dict:
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+class AdminCarCreate(BaseModel):
+    name: str
+    brand: str
+    price_min: int
+    price_max: int
+    mileage: str
+    fuel_type: str
+    transmission: str
+    engine: str
+    body_type: str
+    seating_capacity: int
+    safety_rating: float
+    image_url: str
+
+class AdminCarUpdate(BaseModel):
+    name: Optional[str] = None
+    brand: Optional[str] = None
+    price_min: Optional[int] = None
+    price_max: Optional[int] = None
+    mileage: Optional[str] = None
+    fuel_type: Optional[str] = None
+    transmission: Optional[str] = None
+    engine: Optional[str] = None
+    body_type: Optional[str] = None
+    seating_capacity: Optional[int] = None
+    safety_rating: Optional[float] = None
+    image_url: Optional[str] = None
+
+@api_router.get("/admin/stats")
+async def admin_stats(admin: dict = Depends(require_admin)):
+    total_cars = await db.cars.count_documents({})
+    total_users = await db.users.count_documents({})
+    total_recs = await db.recommendation_history.count_documents({})
+    
+    brand_pipeline = [{"$group": {"_id": "$brand", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+    brand_stats = await db.cars.aggregate(brand_pipeline).to_list(20)
+    
+    fuel_pipeline = [{"$group": {"_id": "$fuel_type", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+    fuel_stats = await db.cars.aggregate(fuel_pipeline).to_list(10)
+    
+    return {
+        "total_cars": total_cars,
+        "total_users": total_users,
+        "total_recommendations": total_recs,
+        "brand_distribution": [{"brand": b["_id"], "count": b["count"]} for b in brand_stats],
+        "fuel_distribution": [{"fuel": f["_id"], "count": f["count"]} for f in fuel_stats]
+    }
+
+@api_router.get("/admin/users")
+async def admin_get_users(admin: dict = Depends(require_admin)):
+    users = await db.users.find({}, {"password_hash": 0}).to_list(100)
+    for u in users:
+        u["id"] = str(u.pop("_id"))
+    return users
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    result = await db.users.delete_one({"_id": ObjectId(user_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "User deleted"}
+
+@api_router.post("/admin/cars")
+async def admin_create_car(car: AdminCarCreate, admin: dict = Depends(require_admin)):
+    last_car = await db.cars.find_one({}, sort=[("id", -1)])
+    new_id = str(int(last_car["id"]) + 1) if last_car else "1"
+    
+    car_doc = car.model_dump()
+    car_doc["id"] = new_id
+    await db.cars.insert_one(car_doc)
+    
+    return {"id": new_id, "message": "Car created successfully"}
+
+@api_router.put("/admin/cars/{car_id}")
+async def admin_update_car(car_id: str, car: AdminCarUpdate, admin: dict = Depends(require_admin)):
+    updates = {k: v for k, v in car.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    result = await db.cars.update_one({"id": car_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Car not found")
+    return {"message": "Car updated successfully"}
+
+@api_router.delete("/admin/cars/{car_id}")
+async def admin_delete_car(car_id: str, admin: dict = Depends(require_admin)):
+    result = await db.cars.delete_one({"id": car_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Car not found")
+    return {"message": "Car deleted"}
+
 async def seed_admin():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@autovista.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
@@ -381,24 +564,24 @@ async def seed_admin():
 async def seed_cars():
     count = await db.cars.count_documents({})
     if count > 0:
-        return
+        await db.cars.delete_many({})
     
     indian_cars = [
-        {"id": "1", "name": "Swift", "brand": "Maruti Suzuki", "price_min": 599000, "price_max": 899000, "mileage": "22.38 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1197 cc", "body_type": "Hatchback", "seating_capacity": 5, "safety_rating": 4.2, "image_url": "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=800"},
-        {"id": "2", "name": "Creta", "brand": "Hyundai", "price_min": 1099000, "price_max": 2005000, "mileage": "17.4 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1497 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.5, "image_url": "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800"},
-        {"id": "3", "name": "Nexon", "brand": "Tata", "price_min": 799000, "price_max": 1459000, "mileage": "17.57 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1199 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.8, "image_url": "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800"},
-        {"id": "4", "name": "Seltos", "brand": "Kia", "price_min": 1099000, "price_max": 2010000, "mileage": "16.8 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "1493 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.6, "image_url": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800"},
-        {"id": "5", "name": "City", "brand": "Honda", "price_min": 1199000, "price_max": 1609000, "mileage": "17.8 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1498 cc", "body_type": "Sedan", "seating_capacity": 5, "safety_rating": 4.4, "image_url": "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800"},
-        {"id": "6", "name": "Fortuner", "brand": "Toyota", "price_min": 3349000, "price_max": 5143000, "mileage": "10.0 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "2755 cc", "body_type": "SUV", "seating_capacity": 7, "safety_rating": 4.7, "image_url": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800"},
+        {"id": "1", "name": "Swift", "brand": "Maruti Suzuki", "price_min": 649000, "price_max": 949000, "mileage": "22.56 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1197 cc", "body_type": "Hatchback", "seating_capacity": 5, "safety_rating": 4.2, "image_url": "https://images.unsplash.com/photo-1694463181968-9c1c0c35b40c?w=800"},
+        {"id": "2", "name": "Creta", "brand": "Hyundai", "price_min": 1099900, "price_max": 2005000, "mileage": "17.4 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1497 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.5, "image_url": "https://images.unsplash.com/photo-1760713170685-b67abc3be5ad?w=800"},
+        {"id": "3", "name": "Nexon", "brand": "Tata", "price_min": 799900, "price_max": 1509900, "mileage": "17.57 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1199 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.8, "image_url": "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800"},
+        {"id": "4", "name": "Seltos", "brand": "Kia", "price_min": 1099900, "price_max": 2019900, "mileage": "16.8 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "1493 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.6, "image_url": "https://images.unsplash.com/photo-1760713173223-59ef015ad368?w=800"},
+        {"id": "5", "name": "City", "brand": "Honda", "price_min": 1199900, "price_max": 1609900, "mileage": "17.8 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1498 cc", "body_type": "Sedan", "seating_capacity": 5, "safety_rating": 4.4, "image_url": "https://images.unsplash.com/photo-1597007029837-50500644a1d6?w=800"},
+        {"id": "6", "name": "Fortuner", "brand": "Toyota", "price_min": 3349000, "price_max": 5143000, "mileage": "10.0 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "2755 cc", "body_type": "SUV", "seating_capacity": 7, "safety_rating": 4.7, "image_url": "https://images.unsplash.com/photo-1760713164476-7eb5063b3d07?w=800"},
         {"id": "7", "name": "XUV700", "brand": "Mahindra", "price_min": 1399000, "price_max": 2609000, "mileage": "13.0 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "2184 cc", "body_type": "SUV", "seating_capacity": 7, "safety_rating": 4.9, "image_url": "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800"},
-        {"id": "8", "name": "Baleno", "brand": "Maruti Suzuki", "price_min": 649000, "price_max": 989000, "mileage": "22.94 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1197 cc", "body_type": "Hatchback", "seating_capacity": 5, "safety_rating": 4.1, "image_url": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800"},
-        {"id": "9", "name": "Verna", "brand": "Hyundai", "price_min": 1107000, "price_max": 1782000, "mileage": "18.0 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1497 cc", "body_type": "Sedan", "seating_capacity": 5, "safety_rating": 4.3, "image_url": "https://images.unsplash.com/photo-1617469767053-d3b523a0b982?w=800"},
-        {"id": "10", "name": "Punch", "brand": "Tata", "price_min": 599000, "price_max": 999000, "mileage": "18.97 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1199 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.7, "image_url": "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?w=800"},
-        {"id": "11", "name": "Scorpio-N", "brand": "Mahindra", "price_min": 1299000, "price_max": 2479000, "mileage": "12.2 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "2184 cc", "body_type": "SUV", "seating_capacity": 7, "safety_rating": 4.6, "image_url": "https://images.unsplash.com/photo-1566023888772-3fe9f27d60de?w=800"},
-        {"id": "12", "name": "Venue", "brand": "Hyundai", "price_min": 749000, "price_max": 1364000, "mileage": "18.2 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "998 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.3, "image_url": "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800"},
-        {"id": "13", "name": "Brezza", "brand": "Maruti Suzuki", "price_min": 849000, "price_max": 1399000, "mileage": "19.80 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1462 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.4, "image_url": "https://images.unsplash.com/photo-1581540222194-0def20ecae37?w=800"},
-        {"id": "14", "name": "Thar", "brand": "Mahindra", "price_min": 1099000, "price_max": 1679000, "mileage": "11.6 km/l", "fuel_type": "Diesel", "transmission": "Manual", "engine": "2184 cc", "body_type": "SUV", "seating_capacity": 4, "safety_rating": 4.5, "image_url": "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800"},
-        {"id": "15", "name": "Altroz", "brand": "Tata", "price_min": 649000, "price_max": 1034000, "mileage": "19.33 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1199 cc", "body_type": "Hatchback", "seating_capacity": 5, "safety_rating": 4.6, "image_url": "https://images.unsplash.com/photo-1558617743-1b6b7e8b3192?w=800"}
+        {"id": "8", "name": "Baleno", "brand": "Maruti Suzuki", "price_min": 664900, "price_max": 989000, "mileage": "22.94 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1197 cc", "body_type": "Hatchback", "seating_capacity": 5, "safety_rating": 4.1, "image_url": "https://images.unsplash.com/photo-1718750318868-1d91b35bfd68?w=800"},
+        {"id": "9", "name": "Verna", "brand": "Hyundai", "price_min": 1107000, "price_max": 1782000, "mileage": "18.0 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1497 cc", "body_type": "Sedan", "seating_capacity": 5, "safety_rating": 4.3, "image_url": "https://images.unsplash.com/photo-1583917070468-ea1c7b88dce1?w=800"},
+        {"id": "10", "name": "Punch", "brand": "Tata", "price_min": 599900, "price_max": 999000, "mileage": "18.97 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1199 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.7, "image_url": "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?w=800"},
+        {"id": "11", "name": "Scorpio-N", "brand": "Mahindra", "price_min": 1399000, "price_max": 2479000, "mileage": "12.2 km/l", "fuel_type": "Diesel", "transmission": "Automatic", "engine": "2184 cc", "body_type": "SUV", "seating_capacity": 7, "safety_rating": 4.6, "image_url": "https://images.unsplash.com/photo-1669606072600-1a62d7f24873?w=800"},
+        {"id": "12", "name": "Venue", "brand": "Hyundai", "price_min": 774000, "price_max": 1364000, "mileage": "18.2 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "998 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.3, "image_url": "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800"},
+        {"id": "13", "name": "Brezza", "brand": "Maruti Suzuki", "price_min": 849000, "price_max": 1399000, "mileage": "19.80 km/l", "fuel_type": "Petrol", "transmission": "Automatic", "engine": "1462 cc", "body_type": "SUV", "seating_capacity": 5, "safety_rating": 4.4, "image_url": "https://images.unsplash.com/photo-1662253273214-3d8ac98597f5?w=800"},
+        {"id": "14", "name": "Thar", "brand": "Mahindra", "price_min": 1099000, "price_max": 1809000, "mileage": "11.6 km/l", "fuel_type": "Diesel", "transmission": "Manual", "engine": "2184 cc", "body_type": "SUV", "seating_capacity": 4, "safety_rating": 4.5, "image_url": "https://images.unsplash.com/photo-1765150813151-1616ba84a904?w=800"},
+        {"id": "15", "name": "Altroz", "brand": "Tata", "price_min": 669900, "price_max": 1079900, "mileage": "19.33 km/l", "fuel_type": "Petrol", "transmission": "Manual", "engine": "1199 cc", "body_type": "Hatchback", "seating_capacity": 5, "safety_rating": 4.6, "image_url": "https://images.unsplash.com/photo-1662715082344-85246ce3c068?w=800"}
     ]
     
     await db.cars.insert_many(indian_cars)

@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-const LOGO_URL = "https://customer-assets.emergentagent.com/job_autovista-search/artifacts/9soiiv3t_ChatGPT%20Image%20Apr%2017%2C%202026%2C%2007_36_31%20PM.png";
+import AutoVistaLogo from '@/components/AutoVistaLogo';
 
 function Skeleton() {
   return (
@@ -143,7 +143,7 @@ export default function CarListingPage() {
       <nav className="sticky top-0 z-30 backdrop-blur-xl bg-black/40 border-b border-white/10 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <motion.div className="cursor-pointer" onClick={() => navigate('/')} whileHover={{ scale: 1.05 }}>
-            <img src={LOGO_URL} alt="AutoVista" className="h-8 object-contain" data-testid="nav-logo" />
+            <AutoVistaLogo className="h-8" dark={true} data-testid="nav-logo" />
           </motion.div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" className="lg:hidden text-white" onClick={() => setMobileFiltersOpen(true)} data-testid="mobile-filter-toggle">

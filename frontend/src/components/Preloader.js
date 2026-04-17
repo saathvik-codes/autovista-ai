@@ -102,12 +102,22 @@ export default function Preloader({ onComplete }) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1, duration: 0.8 }}
+              className="flex flex-col items-center"
             >
-              <img
-                src="https://customer-assets.emergentagent.com/job_autovista-search/artifacts/9soiiv3t_ChatGPT%20Image%20Apr%2017%2C%202026%2C%2007_36_31%20PM.png"
-                alt="AutoVista"
-                className="h-16 mx-auto mb-4 object-contain"
-              />
+              <svg className="h-12 mx-auto mb-4" viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+                <defs>
+                  <linearGradient id="preloaderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#06b6d4"/>
+                    <stop offset="100%" stopColor="#3b82f6"/>
+                  </linearGradient>
+                </defs>
+                <text x="60" y="140" fontFamily="Outfit, Poppins, Inter, sans-serif" fontSize="42" fontWeight="600" fill="white">
+                  Auto<tspan fill="url(#preloaderGrad)">Vista</tspan>
+                </text>
+                <text x="62" y="155" fontFamily="Outfit, Inter, sans-serif" fontSize="13" fill="#94a3b8" letterSpacing="1">
+                  INTELLIGENT CAR DISCOVERY
+                </text>
+              </svg>
             </motion.div>
 
             {/* Progress Bar */}

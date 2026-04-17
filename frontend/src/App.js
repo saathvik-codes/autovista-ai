@@ -11,6 +11,7 @@ import RegisterPage from '@/pages/RegisterPage';
 import CarListingPage from '@/pages/CarListingPage';
 import CarDetailPage from '@/pages/CarDetailPage';
 import DashboardPage from '@/pages/DashboardPage';
+import AdminPage from '@/pages/AdminPage';
 import '@/App.css';
 
 function AnimatedRoutes() {
@@ -28,6 +29,14 @@ function AnimatedRoutes() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
             </ProtectedRoute>
           }
         />

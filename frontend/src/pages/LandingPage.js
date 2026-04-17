@@ -6,7 +6,8 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 
-const LOGO_URL = "https://customer-assets.emergentagent.com/job_autovista-search/artifacts/9soiiv3t_ChatGPT%20Image%20Apr%2017%2C%202026%2C%2007_36_31%20PM.png";
+import AutoVistaLogo from '@/components/AutoVistaLogo';
+
 const HERO_CAR_URL = "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/1d9f6af135f5415eae93db33eb7dbcf53f9b79e3e4918ea588ea4b57b495db64.png";
 const BG_URL = "https://static.prod-images.emergentagent.com/jobs/014d81ed-6d1e-486e-931c-c64e7d22d8e8/images/1e86ca222d893c57534c15c2e03ffdcabb19f382f95705f83a3ff28b207d5ac6.png";
 
@@ -130,7 +131,7 @@ export default function LandingPage() {
             onClick={() => navigate('/')}
             whileHover={{ scale: 1.05 }}
           >
-            <img src={LOGO_URL} alt="AutoVista" className="h-10 object-contain" data-testid="nav-logo-img" />
+            <AutoVistaLogo className="h-10" dark={true} data-testid="nav-logo-img" />
           </motion.div>
           <div className="hidden md:flex items-center space-x-8 text-sm text-gray-300">
             <a href="#features" className="hover:text-cyan-400 transition-colors duration-300" data-testid="nav-features">Features</a>
@@ -412,7 +413,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10 py-8 mt-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between">
-          <img src={LOGO_URL} alt="AutoVista" className="h-8 mb-4 md:mb-0 object-contain" />
+          <AutoVistaLogo className="h-8 mb-4 md:mb-0" dark={true} />
           <p className="text-sm text-gray-500">2026 AutoVista. Drive Your Dream.</p>
         </div>
       </footer>

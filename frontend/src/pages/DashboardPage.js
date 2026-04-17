@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Home, Car, Heart, History, BarChart3, LogOut, TrendingUp, Zap } from 'lucide-react';
+import { Menu, X, Home, Car, Heart, History, BarChart3, LogOut, TrendingUp, Zap, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, authAxios } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-const LOGO_URL = "https://customer-assets.emergentagent.com/job_autovista-search/artifacts/9soiiv3t_ChatGPT%20Image%20Apr%2017%2C%202026%2C%2007_36_31%20PM.png";
+import AutoVistaLogo from '@/components/AutoVistaLogo';
 
 const navItems = [
   { icon: Home, label: 'Home', path: '/' },
@@ -16,6 +16,7 @@ const navItems = [
   { icon: Heart, label: 'Saved Cars', section: 'saved' },
   { icon: History, label: 'Recommendations', section: 'recs' },
   { icon: BarChart3, label: 'Analytics', section: 'analytics' },
+  { icon: Shield, label: 'Admin Panel', path: '/admin', adminOnly: true },
 ];
 
 const brandData = [
@@ -72,7 +73,7 @@ export default function DashboardPage() {
           <AnimatePresence>
             {sidebarOpen && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <img src={LOGO_URL} alt="AutoVista" className="h-8 object-contain" />
+                <AutoVistaLogo className="h-8" dark={false} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -83,7 +84,7 @@ export default function DashboardPage() {
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item, idx) => {
+          {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item, idx) => {
             const isActive = item.section === activeSection;
             return (
               <motion.div key={idx} whileHover={{ x: 4 }} whileTap={{ scale: 0.97 }}>

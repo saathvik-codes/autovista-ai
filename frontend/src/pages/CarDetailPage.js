@@ -12,7 +12,7 @@ import { useAuth, authAxios } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-const LOGO_URL = "https://customer-assets.emergentagent.com/job_autovista-search/artifacts/9soiiv3t_ChatGPT%20Image%20Apr%2017%2C%202026%2C%2007_36_31%20PM.png";
+import AutoVistaLogo from '@/components/AutoVistaLogo';
 
 function AnimatedNumber({ value, prefix = '', suffix = '' }) {
   const [displayed, setDisplayed] = useState(0);
@@ -117,7 +117,7 @@ export default function CarDetailPage() {
             <Button variant="ghost" onClick={() => navigate('/cars')} data-testid="back-button">
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
-            <img src={LOGO_URL} alt="AutoVista" className="h-7 hidden md:block" />
+            <AutoVistaLogo className="h-7 hidden md:block" dark={false} />
           </div>
           <div className="flex items-center gap-3">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
