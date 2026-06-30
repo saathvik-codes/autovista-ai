@@ -76,6 +76,12 @@ agenthub/agents/youtube/db
 # Build caches
 .cache/
 
+# ML pipeline: versioned retrain artifacts are live runtime state, not
+# source - the baseline price_model.joblib/metadata.json from train.py
+# IS committed so the app has a working model out of the box.
+ml/artifacts/price_model_v*.joblib
+ml/artifacts/latest.json
+
 memory/test_credentials.md
 
 # Mobile development

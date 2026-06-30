@@ -1,0 +1,68 @@
+{
+  "best_model": "gradient_boosting",
+  "results": {
+    "linear_regression": {
+      "mae": 189910.0,
+      "rmse": 344680.0,
+      "r2": 0.5154,
+      "cv_r2_mean": 0.4653,
+      "cv_r2_std": 0.062
+    },
+    "random_forest": {
+      "mae": 141380.0,
+      "rmse": 272592.0,
+      "r2": 0.6969,
+      "cv_r2_mean": 0.5991,
+      "cv_r2_std": 0.0792
+    },
+    "gradient_boosting": {
+      "mae": 142895.0,
+      "rmse": 267930.0,
+      "r2": 0.7072,
+      "cv_r2_mean": 0.6986,
+      "cv_r2_std": 0.0607
+    }
+  },
+  "median_baseline_mae": 267045.0,
+  "n_train": 2847,
+  "n_test": 712,
+  "brands": [
+    "Audi",
+    "BMW",
+    "Chevrolet",
+    "Datsun",
+    "Fiat",
+    "Ford",
+    "Honda",
+    "Hyundai",
+    "Jaguar",
+    "Land",
+    "Mahindra",
+    "Maruti",
+    "Mercedes-Benz",
+    "Mitsubishi",
+    "Nissan",
+    "Renault",
+    "Skoda",
+    "Tata",
+    "Toyota",
+    "Volkswagen"
+  ],
+  "fuel_types": [
+    "CNG",
+    "Diesel",
+    "Electric",
+    "LPG",
+    "Petrol"
+  ],
+  "feature_cols": [
+    "brand",
+    "fuel",
+    "seller_type",
+    "transmission",
+    "owner",
+    "car_age",
+    "km_driven"
+  ],
+  "reference_year": 2024
+}

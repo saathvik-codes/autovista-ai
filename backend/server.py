@@ -18,8 +18,12 @@ import jwt
 import secrets
 from typing import Optional, List, Dict, Any
 import asyncio
+import sys
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+sys.path.insert(0, str(ROOT_DIR.parent / "ml"))
+from predict import predict_price as ml_predict_price, predict_future_prices, reload_model as reload_price_model  # noqa: E402
+from recommend import UserPreferences, rank_cars  # noqa: E402
+from pipeline import retrain as run_pipeline_retrain, current_status as current_pipeline_status  # noqa: E402
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -235,81 +239,53 @@ async def get_car_by_id(car_id: str):
 
 @api_router.post("/recommend")
 async def recommend_cars(req: CarRecommendationRequest, user: dict = Depends(get_current_user)):
-    try:
-        query = {"price_min": {"$lte": req.budget}}
-        if req.fuel_type:
-            query["fuel_type"] = req.fuel_type
-        if req.body_type:
-            query["body_type"] = req.body_type
-        if req.transmission:
-            query["transmission"] = req.transmission
-        
-        cars = await db.cars.find(query, {"_id": 0}).to_list(50)
-        
-        if not cars:
-            return {"recommendations": [], "explanation": "No cars found matching your criteria."}
-        
-        cars_text = "\n".join([f"{i+1}. {c['name']} - {c['brand']} - Price: ₹{c['price_min']}-{c['price_max']} - Mileage: {c['mileage']} - Fuel: {c['fuel_type']} - Body: {c['body_type']}" for i, c in enumerate(cars[:20])])
-        
-        chat = LlmChat(
-            api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"rec_{user['id']}_{datetime.now().timestamp()}",
-            system_message="You are an intelligent car recommendation assistant for the Indian market. Analyze the user's requirements and recommend the top 3-5 best cars from the list provided."
-        ).with_model("openai", "gpt-5.2")
-        
-        user_message = UserMessage(
-            text=f"User requirements:\nBudget: ₹{req.budget}\nUsage: {req.usage}\nFuel Type: {req.fuel_type or 'Any'}\nBody Type: {req.body_type or 'Any'}\nTransmission: {req.transmission or 'Any'}\n\nAvailable cars:\n{cars_text}\n\nProvide top 3-5 recommendations with brief explanations. Format: Car name (Brand) - Price - Why recommended."
-        )
-        
-        llm_response = await chat.send_message(user_message)
-        
-        await db.recommendation_history.insert_one({
-            "user_id": user["id"],
-            "budget": req.budget,
-            "usage": req.usage,
-            "fuel_type": req.fuel_type,
-            "body_type": req.body_type,
-            "transmission": req.transmission,
-            "recommendations": llm_response,
-            "created_at": datetime.now(timezone.utc)
-        })
-        
-        return {"recommendations": cars[:5], "explanation": llm_response}
-    except Exception as e:
-        logging.error(f"Recommendation error: {str(e)}")
-        query = {"price_min": {"$lte": req.budget}}
-        if req.fuel_type:
-            query["fuel_type"] = req.fuel_type
-        if req.body_type:
-            query["body_type"] = req.body_type
-        if req.transmission:
-            query["transmission"] = req.transmission
-        
-        cars = await db.cars.find(query, {"_id": 0}).sort([("price_min", 1)]).to_list(5)
-        return {"recommendations": cars, "explanation": "Here are some cars matching your budget and preferences."}
+    cars = await db.cars.find({}, {"_id": 0}).to_list(200)
+    if not cars:
+        return {"recommendations": [], "explanation": "No cars in the catalog yet."}
+
+    prefs = UserPreferences(
+        budget=req.budget,
+        fuel_type=req.fuel_type,
+        body_type=req.body_type,
+        transmission=req.transmission,
+    )
+    ranked = rank_cars(cars, prefs, top_n=5)
+
+    await db.recommendation_history.insert_one({
+        "user_id": user["id"],
+        "budget": req.budget,
+        "usage": req.usage,
+        "fuel_type": req.fuel_type,
+        "body_type": req.body_type,
+        "transmission": req.transmission,
+        "recommendations": [r["car"]["name"] for r in ranked],
+        "created_at": datetime.now(timezone.utc)
+    })
+
+    explanation = (
+        f"Ranked by a weighted match score (budget fit, fuel/body/transmission match, safety rating) "
+        f"against {len(cars)} catalog cars - no LLM call, fully deterministic and re-explainable."
+    )
+    return {
+        "recommendations": [r["car"] for r in ranked],
+        "scores": [{"name": r["car"]["name"], "score": r["score"], "components": r["components"]} for r in ranked],
+        "explanation": explanation,
+    }
 
 @api_router.post("/predict-price")
 async def predict_price(req: PricePredictionRequest):
-    import numpy as np
-    
-    base_price = 500000
-    brand_multipliers = {"Maruti Suzuki": 0.8, "Hyundai": 0.9, "Tata": 0.85, "Mahindra": 0.9, "Honda": 1.0, "Toyota": 1.1, "BMW": 2.5, "Mercedes-Benz": 2.8, "Audi": 2.6}
-    fuel_multipliers = {"Petrol": 1.0, "Diesel": 1.1, "CNG": 0.95, "Electric": 1.3}
-    transmission_multipliers = {"Manual": 1.0, "Automatic": 1.15}
-    
-    age = 2026 - req.year
-    depreciation_rate = 0.12
-    
-    brand_mult = brand_multipliers.get(req.brand, 1.0)
-    fuel_mult = fuel_multipliers.get(req.fuel_type, 1.0)
-    trans_mult = transmission_multipliers.get(req.transmission, 1.0)
-    
-    estimated_price = base_price * brand_mult * fuel_mult * trans_mult * (1 - depreciation_rate) ** age
-    km_depreciation = max(0, 1 - (req.km_driven / 200000) * 0.3)
-    estimated_price *= km_depreciation
-    
-    future_prices = [estimated_price * ((1 - depreciation_rate) ** i) for i in range(1, 6)]
-    
+    estimated_price = ml_predict_price(
+        brand=req.brand,
+        fuel=req.fuel_type,
+        transmission=req.transmission,
+        seller_type="Individual",
+        owner="First Owner",
+        year=req.year,
+        km_driven=req.km_driven,
+    )
+
+    future_prices = predict_future_prices(req.brand, req.fuel_type, req.transmission, req.year, req.km_driven)
+
     return {
         "current_estimated_price": round(estimated_price, 2),
         "future_predictions": [
@@ -536,6 +512,25 @@ async def admin_delete_car(car_id: str, admin: dict = Depends(require_admin)):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Car not found")
     return {"message": "Car deleted"}
+
+@api_router.get("/admin/ml/status")
+async def admin_ml_status(admin: dict = Depends(require_admin)):
+    """Current price-model version, when it was last retrained, and its
+    real held-out accuracy - so the platform can show, not just claim,
+    that the model behind /predict-price is current."""
+    return current_pipeline_status()
+
+@api_router.post("/admin/ml/retrain")
+async def admin_ml_retrain(new_listings: List[Dict[str, Any]] = [], admin: dict = Depends(require_admin)):
+    """End-to-end retrain: optionally ingest newly arrived listings
+    (same schema as the source CSV - name/year/selling_price/km_driven/
+    fuel/seller_type/transmission/owner), retrain, version the artifact,
+    and hot-swap the model the live /predict-price endpoint uses - no
+    redeploy, no restart. Runs the (CPU-bound) retrain in a thread so it
+    doesn't block the event loop."""
+    metadata = await asyncio.to_thread(run_pipeline_retrain, new_listings)
+    reload_price_model()
+    return metadata
 
 async def seed_admin():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@autovista.com")
